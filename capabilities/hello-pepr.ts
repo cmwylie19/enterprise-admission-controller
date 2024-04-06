@@ -47,17 +47,17 @@ When(a.Namespace)
  * server-side apply for this operation, the ConfigMap will be created or updated if it already exists.
  */
 When(a.Namespace)
-  .IsCreatedOrUpdated()
-  .WithName("pepr-demo")
+  .IsCreated()
+  .WithName("pepr-demo-2")
   .Watch(async ns => {
-    Log.info("Namespace pepr-demo was updated again.");
+    Log.info("Namespace pepr-demo-2 was created.");
 
     try {
       // Apply the ConfigMap using K8s server-side apply
       await K8s(kind.ConfigMap).Apply({
         metadata: {
           name: "pepr-ssa-demo",
-          namespace: "pepr-demo",
+          namespace: "pepr-demo-2",
         },
         data: {
           "ns-uid": ns.metadata.uid,
