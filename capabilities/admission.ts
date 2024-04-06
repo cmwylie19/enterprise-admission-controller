@@ -1,4 +1,11 @@
-import { Capability, PeprMutateRequest, PeprValidateRequest, a } from "pepr";
+import {
+  Capability,
+  PeprMutateRequest,
+  PeprValidateRequest,
+  a,
+  K8s,
+  kind,
+} from "pepr";
 import { V1Container } from "@kubernetes/client-node";
 // import { containers } from "pepr/sdk"
 
@@ -8,7 +15,49 @@ export const Admission = new Capability({
   namespaces: [],
 });
 
-const { When } = Admission;
+const { When, Store } = Admission;
+
+When(a.Pod)
+  .IsCreated()
+  .WithName("legacy-app")
+  .Watch(async po => {
+    let count = parseInt(Store.getItem(po.metadata.name));
+    if (count) {
+      const updatedCount = count++;
+      if (updatedCount >= 3) {
+        await patchPod(
+          po.metadata.name,
+          po.metadata.namespace,
+          po.spec.containers[0].name,
+        );
+      }
+      await Store.setItemAndWait(po.metadata.name, `${count++}`);
+    }
+    {
+      await Store.setItemAndWait(po.metadata.name, "0");
+    }
+  });
+
+const patchPod = async (
+  name: string,
+  namespace: string,
+  containerName: string,
+): Promise<void> => {
+  await K8s(kind.Pod).Apply({
+    metadata: {
+      name,
+      namespace,
+    },
+    spec: {
+      containers: [
+        {
+          name: containerName,
+          args: ["sleep", "infinity"],
+        },
+      ],
+    },
+  });
+};
 
 When(a.Pod)
   .IsCreatedOrUpdated()
