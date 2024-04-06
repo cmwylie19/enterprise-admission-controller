@@ -1,5 +1,4 @@
 import { Capability, PeprMutateRequest, PeprValidateRequest, a } from "pepr";
-// import { containers } from "pepr/sdk"
 
 export const Admission = new Capability({
   name: "Admission",
