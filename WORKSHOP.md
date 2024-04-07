@@ -628,59 +628,45 @@ If you got the expected output, you win! Go to the next. **DO NOT DELETE YOUR CL
 
 ## Phase 4
 
-Big Enterprise Co has several legacy applications. During times of high traffic they begin to malfunction like an old TV that needs an antenna adjustment. The company has organizational knowledge of the exact apps that have this problem. With Pepr, if we are aware of the problem, we can program in the solution. 
+Pepr features a full featured Store and Schedule. Back in [Phase 3](#phase-3) we were applying default runAsUser securityContexts but we ignored pods with label `ignore-me`. Big Enterprise Co wants to run a job that reports the last app that uses the ignore label every 10 seconds. You were thinking about using a Kubernetes native CronJob, but you realize with Pepr's Store and Schedule you can do this all in one place.
 
 #### Activity 4
 
-In this activity we are going to use the Pepr Store to track when a pod is frequently restarting. The idea is to deploy a pod that is going to restart every ~ 10 seconds and write an action that looks for creation of a pod with a specific name and uses the store to track that specific information. Once the pod has restarted more than 3 times, then we should use the Kubernetes Fluent Client to patch it. The patch code will be provided for you. Notice this time we are using Watch instead of Mutate or Validate. That is because Watch is not technically part of the Kubernetes Admission processes, but instead an API call directly to the Kube APIServer. This is important to note because Webhook experience a [timeout](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#timeouts), in Pepr, this timeout is configurable but the general idea is to keep the timeout as short as possible and Watch does not have any timeout. 
+_This activity is more metaphorical than a real world use-case, the idea is to learn to use the Store and Schedule._
+
+We need to update the `capability/admission.ts` to store the last pod that has the label `ignore-me` and then create a schedule that runs every 10 seconds to check the store for the last pod that has the label `ignore-me`.
+
+Todo:
+- Update the Mutate action that is looking for pods that were CreatedOrUpdated, if the pod has label "ignore-me", set the pod in the store with `Store.setItem("last-ignore-me", po.Raw.metadata.name);`
+- Create an OnSchedule that gets the item from the store "last-ignore-me" and does a Log.info("Last ignored pod was xxx") and then sets another item in the store "pass" to "{name-of-pod}".
 
 
 Hint:
-1. Add a new Watch action to `capability/admission.ts`
+- [OnSchedule](https://docs.pepr.dev/main/user-guide/onschedule/) Docs
+- [Store](https://docs.pepr.dev/main/user-guide/store/) Docs
+1. Make sure you run Pepr with PEPR_WATCH_MODE=true in order to use the schedule`PEPR_WATCH_MODE="true"  npx pepr dev --confirm`
 
 ```ts
-When(a.Pod)
-  .IsCreated()
-  .WithName("legacy-app")
-  .Watch(async po => {
-    let count = parseInt(Store.getItem(po.metadata.name));
-    if (count) {
-      // increment count
-      if (updatedCount >= 3) {
-        await patchPod(
-          po.metadata.name,
-          po.metadata.namespace,
-          po.spec.containers[0].name,
-        );
-      }
-      await Store.setItemAndWait(po.metadata.name, COUNT_AS_STRING);
-    }
-    {
-      await Store.setItemAndWait(po.metadata.name, "0");
-    }
-  });
+const { When, Store, OnSchedule } = Admission;
 
-const patchPod = async (
-  name: string,
-  namespace: string,
-  containerName: string,
-): Promise<void> => {
-  await K8s(kind.Pod).Apply({
-    metadata: {
-      name,
-      namespace,
-    },
-    spec: {
-      containers: [
-        {
-          name: containerName,
-          args: ["sleep", "infinity"],
-        },
-      ],
-    },
-  });
-};
+OnSchedule({
+  name: "...",
+  every: ?,
+  unit: "seconds",
+  run:  () => {...},
+});
+
+When(a.Pod)
+  .IsCreatedOrUpdated()
+  .Mutate(po => {
+    if (!po.HasLabel("ignore-me")) {
+
+    } else {
+      ....
+    }
 ```
+
+_Check Correctness_
 
 ```yaml
 kubectl apply -f -<<EOF
@@ -698,22 +684,22 @@ kind: Pod
 metadata:
   creationTimestamp: null
   labels:
-    run: crashloop-demo
-  name: crashloop-demo
+    run: legacy-app
+    alert: critical
+    ignore-me: sure
+  name: legacy-app
   namespace: phase-4
 spec:
   containers:
-  - args:
-    - /bin/sh
-    - -c
-    - sleep 10; exit 1
-    image: busybox
-    name: crashloop-demo
+  - image: nginx
+    name: legacy-app
     resources: {}
   dnsPolicy: ClusterFirst
   restartPolicy: Always
 status: {}
 EOF
+sleep 20
+kubectl get peprstore -n pepr-system -oyaml | grep pass
 ```
 
 ## Phase 5

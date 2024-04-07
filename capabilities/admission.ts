@@ -1,13 +1,11 @@
 import {
   Capability,
+  Log,
   PeprMutateRequest,
   PeprValidateRequest,
   a,
-  K8s,
-  kind,
 } from "pepr";
 import { V1Container } from "@kubernetes/client-node";
-// import { containers } from "pepr/sdk"
 
 export const Admission = new Capability({
   name: "Admission",
@@ -15,49 +13,20 @@ export const Admission = new Capability({
   namespaces: [],
 });
 
-const { When, Store } = Admission;
+const { When, Store, OnSchedule } = Admission;
 
-When(a.Pod)
-  .IsCreated()
-  .WithName("legacy-app")
-  .Watch(async po => {
-    let count = parseInt(Store.getItem(po.metadata.name));
-    if (count) {
-      const updatedCount = count++;
-      if (updatedCount >= 3) {
-        await patchPod(
-          po.metadata.name,
-          po.metadata.namespace,
-          po.spec.containers[0].name,
-        );
-      }
-      await Store.setItemAndWait(po.metadata.name, `${count++}`);
+OnSchedule({
+  name: "send-alerts",
+  every: 10,
+  unit: "seconds",
+  run: () => {
+    const lastIgnoreMe = Store.getItem("last-ignore-me");
+    if (lastIgnoreMe) {
+      Log.info(`Last ignored pod was ${lastIgnoreMe}`);
+      Store.setItem("pass", lastIgnoreMe);
     }
-    {
-      await Store.setItemAndWait(po.metadata.name, "0");
-    }
-  });
-
-const patchPod = async (
-  name: string,
-  namespace: string,
-  containerName: string,
-): Promise<void> => {
-  await K8s(kind.Pod).Apply({
-    metadata: {
-      name,
-      namespace,
-    },
-    spec: {
-      containers: [
-        {
-          name: containerName,
-          args: ["sleep", "infinity"],
-        },
-      ],
-    },
-  });
-};
+  },
+});
 
 When(a.Pod)
   .IsCreatedOrUpdated()
@@ -112,6 +81,8 @@ When(a.Pod)
       } else if (!po.Raw.spec.securityContext?.runAsUser) {
         po.Raw.spec.securityContext.runAsUser = 655532;
       }
+    } else {
+      Store.setItem("last-ignore-me", po.Raw.metadata.name);
     }
   });
 export function containers(
