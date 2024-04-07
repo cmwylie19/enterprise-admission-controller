@@ -10,9 +10,10 @@ The format to run this workshop is phase by phase moving on after each activity 
 - [Activity 2 - No privileged pods](#activity-2)
 - [Phase 3 - Mutating Security Posture](phase-3)
 - [Activity 3 - Standardized security contexts](#activity-3)
-- [Phase 4 - Organizational Knowledge](#phase-4)
+- [Phase 4 - Programming Organizational Knowledge](#phase-4)
 - [Activity 4 - When there is static, slap the TV](#activity-4)
-
+- [Phase 5 - Operator for repeatable deployments](#phase-5)
+- [Activity 5 - Deploying a webapp](#activity-5)
 ## Prereqs
 
 - Mac or Linux
@@ -710,16 +711,21 @@ kubectl get peprstore -n pepr-system -oyaml | grep pass
 
 ## Phase 5
 
-As part of your job at Big Enterprise Co, you must onboard applications onto the Kubernetes cluster with 200 apps in production. The problem is that these applications have complex configurations and the teams have no experience in Kubernetes. The team knows their app but not how to deploy it. Your job is to make it easier for the team to deploy their application by consolidating the amount of Kubernetes resources that it takes to deploy their app. Typically the app would need:"
-- Deployment
-- Service
-- ConfigMap
+Congrats! SO far 199/200 apps are onboarded. Unfortunately, the last app has no Kubernetes experience and are having a difficult time having repeatable deployments and "heroics" are involved every time they need to do a release. After seeing the team pull all-nighters, you decide to build an operator to help them deploy their app. Since Pepr natively speaks to the Kubernetes Watch API and has a reconcile callback that processes events in a Queue guaranteeing ordered and synchronous processing of events, even when the system may be under heavy load.
 
-Your job is to consolidate this down to onw resource so that the team can focus more on building the app and less on the deployment specifics.
+The App has 3 major configuration options:
+1. Language - English, Spanish
+2. Theme - Dark, Light
+3. Replicas - 1-10
+
+
+Your job is to consolidate this down to one resource so that the team can focus more on building the app and less on the deployment specifics.
 
 #### Activity 5
 
-The app that is causing issues is a webapp that can be deployed in English, Spanish, with a Dark or White theme at a given number of replicas less than 10. At this point the pods already have default security contrexts that the admisson controller will take care of. Now we must build the operator
+Create an Operator in Pepr that Reconciles on a WebApp resource, when it sees the WebApp resource, it deploys a deployment, service, and configmap.  It can be deployed in English, Spanish, with a Dark or Light theme at a given number of replicas less than 10. At this point the pods already have default security contrexts that the admisson controller will take care of. Now we must build the operator.
+
+The CustomResourceDefinition will be given to you.
 
 
 ## Steps
