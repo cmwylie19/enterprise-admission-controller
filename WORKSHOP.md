@@ -702,6 +702,12 @@ sleep 20
 kubectl get peprstore -n pepr-system -oyaml | grep pass
 ```
 
+**expected output**
+
+```plaintext
+    Admission-pass: legacy-app
+```
+
 ## Phase 5
 
 As part of your job at Big Enterprise Co, you must onboard applications onto the Kubernetes cluster with 200 apps in production. The problem is that these applications have complex configurations and the teams have no experience in Kubernetes. The team knows their app but not how to deploy it. Your job is to make it easier for the team to deploy their application by consolidating the amount of Kubernetes resources that it takes to deploy their app. Typically the app would need:"
