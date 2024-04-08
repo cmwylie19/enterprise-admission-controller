@@ -49,7 +49,7 @@ function deployment(instance: WebApp) {
           },
           labels: {
             "pepr.dev/operator": name,
-            "ignore-me": "yes"
+            "ignore-me": "yes",
           },
         },
         spec: {

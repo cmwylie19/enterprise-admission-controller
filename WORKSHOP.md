@@ -1,6 +1,6 @@
 # Optimizing Kubernetes Operators and Admission Control with Pepr
 
-The format to run this workshop is phase by phase moving on after each activity is complete. The markdown has a (corresponding repo)[https://github.com/cmwylie19/enterprise-admission-controller.git] where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
+The format to run this workshop is phase by phase moving on after each activity is complete. The markdown has a [corresponding repo](https://github.com/cmwylie19/enterprise-admission-controller.git) where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
 
 ### TOC
 - [Background](#background)
@@ -8,13 +8,14 @@ The format to run this workshop is phase by phase moving on after each activity 
 - [Activity 1 - Run Hello Pepr](#activity-1)
 - [Phase 2 - Validating Security Posture](#phase-2)
 - [Activity 2 - No privileged pods](#activity-2)
-- [Phase 3 - Mutating Security Posture](phase-3)
+- [Phase 3 - Mutating Security Posture](#phase-3)
 - [Activity 3 - Standardized security contexts](#activity-3)
 - [Phase 4 - Programming Organizational Knowledge](#phase-4)
 - [Activity 4 - When there is static, slap the TV](#activity-4)
 - [Phase 5 - Operator for repeatable deployments](#phase-5)
 - [Activity 5 - Deploying a webapp](#activity-5)
 - [Phase 6 - Building Kubernetes manifests](#phase-6)
+- [Activity 6 - Deploy from kubectl](#activity-6)
 - [Phase 7 - What is next?](#phase-7)
 ## Prereqs
 
@@ -55,7 +56,7 @@ Initialize a new Pepr module. (This is what we call a project in Pepr)
 npx pepr init
 ```
 
-You will be asked for a description for the module, and what to do in the event of a failure
+You will be asked for a description for the module, and what to do in the event of a failure.  The description will go as an `annotation` on the controller's deployments. The event failure will be used in the Webhook's [failurePolicy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy).
 
 ```plaintext
 ✔ Enter a name for the new Pepr module. This will create a new directory based on the name.
@@ -157,6 +158,7 @@ kubectl get ns pepr-demo --show-labels
 ```
 
 output
+
 ```plaintext
 NAME        STATUS   AGE   LABELS
 pepr-demo   Active   6s    keep-me=please,kubernetes.io/metadata.name=pepr-demo
@@ -250,6 +252,8 @@ metadata:
 
 The Kubernetes Fluent Client created a resource when Pepr received the `Watch` event from Kubernetes API Server.
 
+_Sometimes Watch is a better option than Mutate or Validate because it is not affected by [WebHook Timeouts](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy) since it is a call to the Kube-Api Server. However, it does require additional RBAC to Watch resources where as it does not for Admission Phases._
+
 Before moving on, play with the intellisense. Starting typing 
 
 ```ys
@@ -268,7 +272,7 @@ which will tree-shake your code ensuring your module is as small as possible
 
 ## Phase 2
 
-Big Enterprise Co has been exploited when hackers reversed shelled out of an over privileged container and sensitive data was stolen from the nodes. Now, they have a zero tolerance policy on privileged containers. 
+Big Enterprise Co has been exploited when a hacker reversed shelled out of an over privileged container and sensitive data was stolen from the nodes. Now, they have a zero tolerance policy on privileged containers. 
 
 #### Activity 2
 
@@ -282,6 +286,8 @@ Hint:
 5. Use the helper function `containers()` from `pepr/sdk` to return all containers on a pod
 6. Update `pepr.ts` to point to admission.ts
 7. Look back in hello-pepr.ts to see how the validates work
+
+[Validate Docs](https://docs.pepr.dev/main/user-guide/actions/#validate)
 
 ```ts
 import { sdk } from "pepr/sdk"
@@ -307,8 +313,9 @@ _Check Correctness_
 
 To check if your module correctly rejects privileged pods:
 1. Refresh your cluster: `npm run k3d-setup`
-2. Open a javascript debug terminal and run `npx pepr format --confirm`
-3. Apply test resources below
+2. Format and run the module `npx pepr format` and then `npx pepr dev --confirm`
+3. Apply test resources below  
+
 ```yaml
 kubectl apply -f -<<EOF
 ---
@@ -411,6 +418,7 @@ spec:
 status: {}
 EOF
 ```
+
 4. Check correctness of pods admitted into the cluster:  
 ```bash
 kubectl get po -n phase-2 --no-headers -o custom-columns=NAME:.metadata.name
@@ -425,8 +433,6 @@ root-user-pod
 If you got the expected output, you win! Go to the next. **DO NOT DELETE YOUR CLUSTER**
 
 
-**Thought Challenge:** Notice we allowed pod `root-user-pod` into the cluster. The policy we created only cares about privilege escalation but in the real world there are many more dangerous events that can happen in a cluster like certain securityContext settings on a container or pod or volume with Write privilege bound directory to the node. A production Admission Controller would be to have a more robust security posture.
-
 ## Phase 3 
 
 Big Enterprise Co has started to enhance its security posture, your bosses are pleased, but you can't help noticed the Pod and Container securityContexts are all over the map. Some pods are running as user 0 (which is a problem), some are running as user 655532, and some are running as 1000. Now you need standardization.  
@@ -438,7 +444,7 @@ Our goal is to standarize the `runAsUser` securityContext for pods and container
 Create a new action to Mutate pods (and the containers of said pod) to have a default runAsUser value:
 - If no runAsUser value exists - assign 655532
 - If a runAsUser exists, only override if value is set to less than 10, in that case override value to 1000
-- If pod has label ignore-me, do not override runAsUser even if it is less than 10
+- If pod has label `ignore-me`, do not override runAsUser even if it is less than 10. **IMPORTANT** When the container user changes, it can lead to problems creating files and mounting volumes which breaks some applications. We need an escape clause. (Hint: you will need this for the operator activity)
 
 Hint:
 1. Add a new Mutate action to `capability/admission.ts`
@@ -447,7 +453,7 @@ Hint:
 4. use the containers function to see if you need to update any containers
 5. Create a helper to re-use code `containerHelper`
 
-
+[Mutate Docs](https://docs.pepr.dev/main/user-guide/actions/#mutate) 
 ```ts
 import { sdk } from "pepr/sdk"
 // V1Container is the container type for the helper
@@ -478,7 +484,7 @@ When(a.Pod)
 _Check Correctness_
 
 To check if your module correctly rejects privileged pods:
-1. Open a javascript debug terminal and run `npx pepr format --confirm`
+1. Format and run the module `npx pepr format` and then `npx pepr dev --confirm`
 2. Apply test resources below. 
 
 ```yaml
@@ -576,7 +582,7 @@ EOF
 
 3. Check the correctness of the mutated pods:
 
-Ignore-me pod should have not been mutated, both runAsUser should be 5.  
+Ignore-me pod should have not been mutated (has the label), both runAsUser should be 5.  
 
 ```bash
 kubectl get po ignore-me -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
@@ -627,15 +633,13 @@ PodSecurityContext   ContainerSecurityContext
 If you got the expected output, you win! Go to the next. **DO NOT DELETE YOUR CLUSTER**
 
 
-**Thought Challenge:** Pod/Container securityContexts has many more options like fsGroups, runAsNonRoot, sysctls depending on whether it is a pod or container. A more robust admission controller would need to consider all of the possibilities. 
-
 ## Phase 4
 
 Pepr features a full featured Store and Schedule. Back in [Phase 3](#phase-3) we were applying default runAsUser securityContexts but we ignored pods with label `ignore-me`. Big Enterprise Co wants to run a job that reports the last app that uses the ignore label every 10 seconds. You were thinking about using a Kubernetes native CronJob, but you realize with Pepr's Store and Schedule you can do this all in one place.
 
 #### Activity 4
 
-_This activity is more metaphorical than a real world use-case, the idea is to learn to use the Store and Schedule._
+_The idea of this activity is to learn to use the Store and Schedule._
 
 We need to update the `capability/admission.ts` to store the last pod that has the label `ignore-me` and then create a schedule that runs every 10 seconds to check the store for the last pod that has the label `ignore-me`.
 
@@ -647,7 +651,10 @@ Todo:
 Hint:
 - [OnSchedule](https://docs.pepr.dev/main/user-guide/onschedule/) Docs
 - [Store](https://docs.pepr.dev/main/user-guide/store/) Docs
-1. Make sure you run Pepr with PEPR_WATCH_MODE=true in order to use the schedule`PEPR_WATCH_MODE="true"  npx pepr dev --confirm`
+1. Make sure you run Pepr with PEPR_WATCH_MODE=true in order to use the schedule`PEPR_WATCH_MODE="true"  npx pepr dev --confirm`  
+
+[Store Docs](https://docs.pepr.dev/main/user-guide/store/)  
+[Schedule Docs](https://docs.pepr.dev/main/user-guide/onschedule/)  
 
 ```ts
 const { When, Store, OnSchedule } = Admission;
@@ -713,7 +720,7 @@ kubectl get peprstore -n pepr-system -oyaml | grep pass
 
 ## Phase 5
 
-Congrats! SO far 199/200 apps are onboarded. Unfortunately, the last app has no Kubernetes experience and are having a difficult time having repeatable deployments and "heroics" are involved every time they need to do a release. After seeing the team pull all-nighters, you decide to build an operator to help them deploy their app. Since Pepr natively speaks to the Kubernetes Watch API and has a reconcile callback that processes events in a Queue guaranteeing ordered and synchronous processing of events, even when the system may be under heavy load.
+Congrats! So far 199/200 apps are onboarded. Unfortunately, the last app team has no Kubernetes experience and are having a difficult time having repeatable deployments and "heroics" are involved every time they need to do a release. After seeing the team pull all-nighters, you decide to build an operator to help deploy the app. Since Pepr natively speaks to the Kubernetes Watch API and has a reconcile callback that processes events in a Queue guaranteeing ordered and synchronous processing of events, even when the system may be under heavy load.
 
 The App has 3 major configuration options:
 1. Language - English, Spanish
@@ -835,5 +842,77 @@ Feel free to ask questions if you missed anything.
 
 ## Phase 6
 
+Big Enterprise Co has a GitOps workflow. You need to generate the Kubernetes manifests for your project. To build your code you can run `npx pepr build`.
+
+In our case, we need to extend the WebHook timeout because our Operator needs to be deleted from the Store BEFORE it is deleted from the Kubernetes cluster. Sometimes it can take several seconds for something to be deleted from the store so it is safer to extend the timeout.
+
+```bash
+npx pepr build --timeout=25
+```
+
+```ts
+When(WebApp)
+  .IsDeleted()
+  .Mutate(async instance => {
+    await Store.removeItemAndWait(instance.Raw.metadata.name);
+  });
+
+When(a.ConfigMap)
+  .IsDeleted()
+  .WithLabel("pepr.dev/operator")
+  .Watch(async cm => {
+    const instance = JSON.parse(
+      Store.getItem(cm.metadata!.labels["pepr.dev/operator"]),
+    ) as a.GenericKind;
+    await Deploy(instance);
+  });
+```
+
+Another alternative we have is to deploy our Controller with rbac-mode scoped down to least privileged. Remember, Mutating and Validating require zero permissins, but Watch and Reconcile does. Running the build in with `rbac-mode=scoped` will generate enough RBAC for you to watch the resources but if you are CREATING, READING, UPDATING, DELETING resources yourself in terms of calls to the Kube-APIServer you will need add that to the cluster role. By default, the service account will have cluster admin and will be able to do ANY API CALL! For prod, it is recommended to scope it down to the least privilege possible.  
+
+```bash
+npx pepr build --rbac-mode=scoped
+```
+
+#### Activity 6
+
+Recreate the cluster and deploy with rbac mode scoped and the webhook timeout set to 25 seconds
+
+Hint:
+- [RBAC Docs](https://docs.pepr.dev/main/user-guide/rbac/)
+- [Build Docs](https://docs.pepr.dev/main/user-guide/pepr-cli/#npx-pepr-build)
+
+```bash
+npx pepr build --rbac-mode=scoped --timeout=25
+```
+
+_Check Correctness_
+
+```bash
+kubectl apply -f dist/pepr-module*.yaml
+kubectl wait --for=condition=ready pod -l app -n 
+pepr-system
+```
+
+Expected outputs:
+
+Admission Controller Pods Ready
+
+```bash
+kubectl get deploy -n pepr-system -l pepr.dev/controller=admission 
+NAME                                                READY   UP-TO-DATE   AVAILABLE   AGE
+pepr-c8219d66-6901-5ef5-bcd5-6bb66f6afbb7           2/2     2            2           3m58s
+```
+
+Watch Controller Pods Ready
+```bash
+kubectl get deploy -n pepr-system -l pepr.dev/controller=watcher 
+NAME                                                READY   UP-TO-DATE   AVAILABLE   AGE
+pepr-c8219d66-6901-5ef5-bcd5-6bb66f6afbb7-watcher   1/1     1            1           3m58s
+```
+
 ## Phase 7 
+
+Think of a security posture that you want to enforce at your company and complete it adding more mutations and validations to your webhooks.
+
 #### [TOP](#optimizing-kubernetes-operators-and-admission-control-with-pepr)
