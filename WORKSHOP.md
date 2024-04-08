@@ -1,6 +1,6 @@
 # Optimizing Kubernetes Operators and Admission Control with Pepr
 
-The format to run this workshop is phase by phase moving on after each activity is complete. The markdown has a corresponding repo https://github.com/cmwylie19/enterprise-admission-controller.git where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
+The format to run this workshop is phase by phase moving on after each activity is complete. The markdown has a (corresponding repo)[https://github.com/cmwylie19/enterprise-admission-controller.git] where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
 
 ### TOC
 - [Background](#background)
@@ -14,6 +14,8 @@ The format to run this workshop is phase by phase moving on after each activity 
 - [Activity 4 - When there is static, slap the TV](#activity-4)
 - [Phase 5 - Operator for repeatable deployments](#phase-5)
 - [Activity 5 - Deploying a webapp](#activity-5)
+- [Phase 6 - Building Kubernetes manifests](#phase-6)
+- [Phase 7 - What is next?](#phase-7)
 ## Prereqs
 
 - Mac or Linux
@@ -26,7 +28,7 @@ The format to run this workshop is phase by phase moving on after each activity 
 
 ### Background 
 
-You are the Chief Architect at Big Enterprise Co which maintains over 200 production apps all from different teams. You are overseeing an effort to migrate all apps to a new multi-cloud HA Kubernetes cluster. 
+You are the Chief Architect at Big Enterprise Co which maintains over 200 production apps from different teams. You are overseeing an effort to migrate all apps to a new multi-cloud HA Kubernetes cluster. 
 
 It is your job to ensure: 
 - All 200 Apps are migrated
@@ -34,7 +36,7 @@ It is your job to ensure:
 - Apps meet resource requirements 
 - The teams are able to quickly release patches and updates
 
-Big Enterprise Co maintains strict standards across the board and does not make exceptions for any team. The teams have different levels of experience in Kubernetes. In order to enforce standarization, you decide to create an Admission Controller so that all resoufcres entering the cluster are validated and mutated to meet the standards.
+Big Enterprise Co maintains strict standards across the board and does not make exceptions for any team. The teams have different levels of experience in Kubernetes. In order to enforce standarization, you decide to create an Admission Controller so that all resources entering the cluster are validated and mutated to meet the standards.
 
 After researching potential Admission Controllers, you decide to use Pepr because:
 - It is [Fully Open Source](https://github.com/defenseunicorns/pepr)
@@ -716,35 +718,122 @@ Congrats! SO far 199/200 apps are onboarded. Unfortunately, the last app has no 
 The App has 3 major configuration options:
 1. Language - English, Spanish
 2. Theme - Dark, Light
-3. Replicas - 1-10
+3. Replicas - 1-7
 
 
 Your job is to consolidate this down to one resource so that the team can focus more on building the app and less on the deployment specifics.
 
 #### Activity 5
 
-Create an Operator in Pepr that Reconciles on a WebApp resource. When the operator is deployed, the CustomResourceDefinition will be created. The operator will deploy a Deployment, Service, and ConfigMap based on the configuration of the WebApp resource.
+Create an Operator in Pepr that Reconciles on a WebApp resource. 
+
+When the Operator is deployed:
+- The WebApp CRD Should be Created
+- If the WebApp CRD is deleted, it should be auto created again
+- If a resource needed by the WebApp is deleted, it should be auto created (Deployment, Service, ConfigMap)
+- If the WebApp instance is deleted, then the owned resources should also be deleted
 
 
-
-The CustomResourceDefinition will be given to you.
-
-
-## Steps
-
-1 - Admission Controller. 
-  
-2 - Security Posture - Pods runAsNonRoot. 
-  
-3 - SecurityPosture - Mutate  securityContext. 
-  
-4 - Organizational Knowledge - Slap the TV. 
-  
-5 - Watch Resources. 
-  
-6 - Reconcile Resource. 
-  
-7 - Deploy   
+Hint:
+1. [Operator Tutorial](https://docs.pepr.dev/main/pepr-tutorials/create-pepr-operator/)
+2. [Excellent Example Operator](https://github.com/defenseunicorns/pepr-excellent-examples/tree/main/pepr-operator)
 
 
+Run your pepr module with `npx pepr dev --confirm` in one terminal.
+
+_Check Correctness_
+
+1. Make sure WebApp CRD was deployed by Controller
+
+```bash
+kubectl get crd webapps.pepr.io --no-headers
+```
+
+expected output
+
+```bash
+webapps.pepr.io   2024-04-08T16:29:29Z
+```
+
+2. Deploy a webapp instance, check to see if a `ConfigMap` with Spanish, a `Service`, and a `Deployment` are created
+
+```yaml
+kubectl create ns webapps;
+kubectl apply -f -<<EOF
+kind: WebApp
+apiVersion: pepr.io/v1alpha1
+metadata:
+  name: webapp-light-en
+  namespace: webapps
+spec:
+  theme: light 
+  language: en
+  replicas: 1 
+EOF
+```
+
+Should have a `ConfigMap`, `Service`, and `Deployment` called webapp-light-en:
+
+```bash
+kubectl get svc,deploy,cm -n webapps --no-headers
+```
+
+expected output
+
+```bash
+service/webapp-light-en   ClusterIP   10.43.173.219   <none>   80/TCP   16s
+deployment.apps/webapp-light-en   1/1   1     1     16s
+configmap/kube-root-ca.crt              1     17s
+configmap/web-content-webapp-light-en   1     16s
+┌─[cmwylie19@Cases-MacBook-Pro] - [~/enterprise-adm
+```
+
+Expect all replicas to be available
+
+```bash
+kubectl get deploy -n webapps webapp-light-en --template="{{.status.availableReplicas}}"
+```
+
+expected output
+```bash
+1
+```
+
+If you delete a WebApp owned resource, it is auto created
+
+```bash
+kubectl delete cm --all -n webapps
+kubectl get cm -n webapps
+```
+
+expected output
+
+```bash
+NAME                          DATA   AGE
+kube-root-ca.crt              1      0s
+web-content-webapp-light-en   1      0s
+```
+
+Expect that if you delete the WebApp Resource, the owned resources will have a cascading deletion
+
+```bash
+kubectl delete webapps -n webapps --all
+
+# wait several seconds
+sleep 10
+kubectl get cm,deploy,svc -n webapps
+```
+
+expected output
+
+```bash
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      105s
+```
+
+Feel free to ask questions if you missed anything.
+
+## Phase 6
+
+## Phase 7 
 #### [TOP](#optimizing-kubernetes-operators-and-admission-control-with-pepr)

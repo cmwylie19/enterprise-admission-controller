@@ -1,11 +1,12 @@
-import {
-  Capability,
-  Log,
-  PeprMutateRequest,
-  PeprValidateRequest,
-  a,
-} from "pepr";
+import { Capability, Log, sdk, a } from "pepr";
 import { V1Container } from "@kubernetes/client-node";
+import { WebApp } from "./crd/generated/webapp-v1alpha1";
+import { validator } from "./crd/validator";
+import { WebAppCRD } from "./crd/source/webapp.crd";
+import { RegisterCRD } from "./crd/register";
+import { reconciler } from "./reconciler";
+import "./crd/register";
+import Deploy from "./controller/generators";
 
 export const Admission = new Capability({
   name: "Admission",
@@ -14,6 +15,8 @@ export const Admission = new Capability({
 });
 
 const { When, Store, OnSchedule } = Admission;
+
+const { containers } = sdk;
 
 OnSchedule({
   name: "send-alerts",
@@ -85,22 +88,59 @@ When(a.Pod)
       Store.setItem("last-ignore-me", po.Raw.metadata.name);
     }
   });
-export function containers(
-  request: PeprValidateRequest<a.Pod> | PeprMutateRequest<a.Pod>,
-  containerType?: "containers" | "initContainers" | "ephemeralContainers",
-) {
-  const containers = request.Raw.spec?.containers || [];
-  const initContainers = request.Raw.spec?.initContainers || [];
-  const ephemeralContainers = request.Raw.spec?.ephemeralContainers || [];
 
-  if (containerType === "containers") {
-    return containers;
-  }
-  if (containerType === "initContainers") {
-    return initContainers;
-  }
-  if (containerType === "ephemeralContainers") {
-    return ephemeralContainers;
-  }
-  return [...containers, ...initContainers, ...ephemeralContainers];
-}
+// When instance is created or updated, validate it and enqueue it for processing
+When(WebApp)
+  .IsCreatedOrUpdated()
+  .Validate(validator)
+  .Reconcile(async instance => {
+    try {
+      Store.setItem(instance.metadata.name, JSON.stringify(instance));
+      await reconciler(instance);
+    } catch (error) {
+      Log.info(`Error reconciling instance of WebApp`);
+    }
+  });
+
+When(WebApp)
+  .IsDeleted()
+  .Mutate(async instance => {
+    await Store.removeItemAndWait(instance.Raw.metadata.name);
+  });
+
+// Don't let the CRD get deleted
+When(a.CustomResourceDefinition)
+  .IsDeleted()
+  .WithName(WebAppCRD.metadata.name)
+  .Watch(() => {
+    RegisterCRD();
+  });
+
+// // Don't let them be deleted
+When(a.Deployment)
+  .IsDeleted()
+  .WithLabel("pepr.dev/operator")
+  .Watch(async deploy => {
+    const instance = JSON.parse(
+      Store.getItem(deploy.metadata!.labels["pepr.dev/operator"]),
+    ) as a.GenericKind;
+    await Deploy(instance);
+  });
+When(a.Service)
+  .IsDeleted()
+  .WithLabel("pepr.dev/operator")
+  .Watch(async svc => {
+    const instance = JSON.parse(
+      Store.getItem(svc.metadata!.labels["pepr.dev/operator"]),
+    ) as a.GenericKind;
+    await Deploy(instance);
+  });
+When(a.ConfigMap)
+  .IsDeleted()
+  .WithLabel("pepr.dev/operator")
+  .Watch(async cm => {
+    const instance = JSON.parse(
+      Store.getItem(cm.metadata!.labels["pepr.dev/operator"]),
+    ) as a.GenericKind;
+    await Deploy(instance);
+  });
