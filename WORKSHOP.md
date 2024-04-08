@@ -723,7 +723,9 @@ Your job is to consolidate this down to one resource so that the team can focus 
 
 #### Activity 5
 
-Create an Operator in Pepr that Reconciles on a WebApp resource, when it sees the WebApp resource, it deploys a deployment, service, and configmap.  It can be deployed in English, Spanish, with a Dark or Light theme at a given number of replicas less than 10. At this point the pods already have default security contrexts that the admisson controller will take care of. Now we must build the operator.
+Create an Operator in Pepr that Reconciles on a WebApp resource. When the operator is deployed, the CustomResourceDefinition will be created. The operator will deploy a Deployment, Service, and ConfigMap based on the configuration of the WebApp resource.
+
+
 
 The CustomResourceDefinition will be given to you.
 
