@@ -122,7 +122,8 @@ Next, create our dev cluster by running: `npm run k3d-setup`:
 
 Open a `JavaScript Debug Terminal` in VSCode
 
-![image](https://gist.github.com/assets/1096507/d3c24776-48b3-45c0-a2a8-fd3f0e03f998)
+![image](https://github.com/cmwylie19/enterprise-admission-controller/assets/1096507/7d4ffbc6-0e81-4b1d-b06f-53a257b1cae0)
+
 
 inside of the debug terminal:
 
