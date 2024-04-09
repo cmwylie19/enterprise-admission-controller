@@ -1,22 +1,22 @@
 # Optimizing Kubernetes Operators and Admission Control with Pepr
 
-The format to run this workshop is phase by phase moving on after each activity is complete. The markdown has a [corresponding repo](https://github.com/cmwylie19/enterprise-admission-controller.git) where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
+The format to run this workshop is phase by phase, moving on after each activity is complete. The markdown has a [corresponding repo](https://github.com/cmwylie19/enterprise-admission-controller.git) where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
 
 ### TOC
 - [Background](#background)
 - [Phase 1 - Get to know Hello Pepr](#phase-1)
 - [Activity 1 - Run Hello Pepr](#activity-1)
-- [Phase 2 - Validating Security Posture](#phase-2)
+- [Phase 2 - Validating security posture](#phase-2)
 - [Activity 2 - No privileged pods](#activity-2)
-- [Phase 3 - Mutating Security Posture](#phase-3)
+- [Phase 3 - Mutating security posture](#phase-3)
 - [Activity 3 - Standardized security contexts](#activity-3)
-- [Phase 4 - Programming Organizational Knowledge](#phase-4)
+- [Phase 4 - Programming organizational knowledge](#phase-4)
 - [Activity 4 - When there is static, slap the TV](#activity-4)
 - [Phase 5 - Operator for repeatable deployments](#phase-5)
 - [Activity 5 - Deploying a webapp](#activity-5)
 - [Phase 6 - Building Kubernetes manifests](#phase-6)
 - [Activity 6 - Deploy from kubectl](#activity-6)
-- [Phase 7 - What is next?](#phase-7)
+- [Phase 7 - What's next?](#phase-7)
 ## Prereqs
 
 - Mac or Linux
@@ -33,29 +33,29 @@ You are the Chief Architect at Big Enterprise Co which maintains over 200 produc
 
 It is your job to ensure: 
 - All 200 Apps are migrated
-- Apps meets security requirements
+- Apps meet security requirements
 - The teams are able to quickly release patches and updates
 
 Big Enterprise Co maintains strict standards across the board and does not make exceptions for any team. The teams have different levels of experience in Kubernetes. In order to enforce standarization, you decide to create an Admission Controller so that all resources entering the cluster are validated and mutated to meet the standards.
 
-After researching potential Admission Controllers, you decide to use Pepr because:
-- It is [Fully Open Source](https://github.com/defenseunicorns/pepr)
-- It allows the creation of Policy to dictate what can enter a Kubernetes Cluster like a Kyverno or an OPA Gatekepper
-- It has a Kubernetes Watch Mechanism like Operator-SDK or Kube-Builder allowing you to write full Kubernetes native applications to simplify advanced configuration
-- It is lightweight and developer friendly with a simple, easy to use, API and comes with intellisense out of the box
+After researching potential Admission Controllers, you decide to use [Pepr](https://github.com/defenseunicorns/pepr) because:
+- It is fully open source
+- It allows the creation of Policy to dictate what can enter a Kubernetes Cluster, similar to Kyverno and OPA Gatekepper
+- It has a Kubernetes Watch Mechanism, similar to Operator-SDK and Kube-Builder, allowing you to write full Kubernetes native applications to simplify advanced configuration
+- It is lightweight and developer friendly with a simple, easy to use, API and comes with IntelliSense out of the box
 - It comes with an intuitive [Kubernetes Client](https://github.com/defenseunicorns/kubernetes-fluent-client) that uses [Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) as a more efficient means to speak to the Kube-APIServer.
 
 ## Phase 1
 
 The first order of business is to create the scaffolding for your Admission Controller, call it `enterprise-admission-controller`. 
 
-Initialize a new Pepr module. (This is what we call a project in Pepr)
+Initialize a new Pepr module. "Module" is what we call a project in Pepr.
 
 ```bash
 npx pepr init
 ```
 
-You will be asked for a description for the module, and what to do in the event of a failure.  The description will go as an `annotation` on the controller's deployments. The event failure will be used in the Webhook's [failurePolicy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy).
+You will be asked for a description for the module and what to do in the event of a failure.  The description will be an `annotation` on the controller's deployments. The event failure will be used in the Webhook's [failurePolicy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy).
 
 ```plaintext
 ✔ Enter a name for the new Pepr module. This will create a new directory based on the name.
@@ -102,9 +102,9 @@ You will be asked for a description for the module, and what to do in the event 
 ? Create the new Pepr module? › (y/N)
 ```
 
-A new VSCode prject will pop up. Run `npm i` to install the modules, then spend a few moments looking over `capabilities/hello-pepr.ts` to try and get an idea how Pepr works.
+A new VSCode project will pop up. Run `npm i` to install the modules, then spend a few moments looking over `capabilities/hello-pepr.ts` to try and get an idea how Pepr works.
 
-Notice how you able to to Mutate, Validate, and Watch Kubernetes Object.
+Notice how you are able to to Mutate, Validate, and Watch a Kubernetes Object.
 
 The general format for each "binding" is:
 
@@ -115,29 +115,37 @@ When(a.<KubernetesObject>)
 .<callback>(Mutate/Validate/Watch/Reconcile)
 ```
 
+For example:
 
-Next, create our dev cluster by running: `npm run k3d-setup`:
+```plaintext
+When(a.Namespace)
+  .IsCreated()
+  .WithAnnotation("DevopsDaysRaleigh 2024")
+  .Mutate(ns => ns.RemoveLabel("remove-me"));
+```
+
+Next, create our dev cluster by running: `npm run k3d-setup`.
 
 #### Activity 1
 
-Open a `JavaScript Debug Terminal` in VSCode
+Open a `JavaScript Debug Terminal` in VSCode:
 
 ![image](https://github.com/cmwylie19/enterprise-admission-controller/assets/1096507/7d4ffbc6-0e81-4b1d-b06f-53a257b1cae0)
 
 
-inside of the debug terminal:
+Inside of the debug terminal run:
 
 ```bash
 npx pepr dev --confirm
 ```
 
-The debug terminal will be used to look at logs for Activity 1.
+The debug terminal will be used to look at logs during Activity 1.
 
-Wait until you see a log like `[xx:xx:xx.xxx] INFO (xxxxx): ✅ Scheduling processed`.
+Wait until you see a log like `[xx:xx:xx.xxx] INFO (xxxxx): ✅ Scheduling processed`. This indicates that the module is ready.
 
-Next, open a second terminal beside of the debug terminal and create the namespace `pepr-demo`:
+Next, open a second terminal beside the debug terminal. We'll use this new terminal to create the namespace `pepr-demo`.
 
-On line 38 of `capabilites/hello-pepr.ts` we see that inside of the Mutate callback there is a `RemoveLabel("remove-me")`. Lets create a namespace with that label and test that it properly Mutates the remove-me label.
+On line 38 of `capabilites/hello-pepr.ts` we see that inside the Mutate callback there is a `RemoveLabel("remove-me")`. Create a namespace with that label and test that it properly Mutates the `remove-me` label:
 
 ```yaml
 kubectl apply -f -<<EOF
@@ -157,14 +165,14 @@ By checking the labels we see that Pepr mutated the remove-me label:
 kubectl get ns pepr-demo --show-labels
 ```
 
-output
+Output confirming that the `remove-me` label has been removed and only the `keep-me` label remains:
 
 ```plaintext
 NAME        STATUS   AGE   LABELS
 pepr-demo   Active   6s    keep-me=please,kubernetes.io/metadata.name=pepr-demo
 ```
 
-On line 157 of `capabilites/hello-pepr.ts` there is a Validate that should reject any ConfigMap created with annotation `evil`. Create a ConfigMap in `pepr-demo` with an evil annotation:
+Next, on line 157 of `capabilites/hello-pepr.ts` there is a Validate that should reject any ConfigMap created with annotation `evil`. To test this, create a ConfigMap in `pepr-demo` with an `evil` annotation:
 
 ```yaml
 kubectl apply -f -<<EOF
@@ -180,17 +188,17 @@ data:
 EOF
 ```
 
-We see that the validating webhook rejected the ConfigMap
-
-output
+In the output we see that the validating webhook rejected the ConfigMap:
 
 ```plaintext
 Error from server: error when creating "STDIN": admission webhook "pepr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.pepr.dev" denied the request: No evil CM annotations allowed.
 ```
 
-Finally, lets see how `Watch` works. On line 51 of `capabilites/hello-pepr.ts` change `.WithName("pepr-demo-2")` to `.WithName("pepr-demo")` and line 53 change `Log.info("Namespace pepr-demo-2 was created.");` to `Log.info("Namespace pepr-demo was updated again.");`, line 60 to `pepr-demo` from `pepr-demo-2` and save.
+Finally, let's see how `Watch` works. 
 
-Lines 49-73 should look like
+On line 51 of `capabilites/hello-pepr.ts` change `.WithName("pepr-demo-2")` to `.WithName("pepr-demo")` and on line 53 change `Log.info("Namespace pepr-demo-2 was created.");` to `Log.info("Namespace pepr-demo was updated again.");`. On line 60 change `pepr-demo-2` to `pepr-demo` and save.
+
+Lines 49-73 should look like:
 ```ts
 When(a.Namespace)
   .IsCreatedOrUpdated()
@@ -219,25 +227,25 @@ When(a.Namespace)
   });
 ```
 
-update the namespace `pepr-demo` while looking at logs in the debug terminal
+Now update the `pepr-demo` namespace while looking at logs in the debug terminal:
 
 ```bash
 kubectl label ns pepr-demo hello=devopsdaysraleigh
 ```
 
-You should see a log with level INFO with:
+You should see a log with level INFO that looks like:
 
 ```plaintext
 [xx:xx:xx.xxx] INFO (xxxxx): Namespace pepr-demo was updated again
 ```
 
-and there should be a new configMap created in `pepr-demo` named `pepr-ssa-demo`:
+There also should be a new configMap created in `pepr-demo` named `pepr-ssa-demo`. You can confirm this with:
 
 ```yaml
 kubectl get cm -n pepr-demo pepr-ssa-demo -oyaml
 ```
 
-output
+The output will be similar to:
 
 ```plaintext
 apiVersion: v1
@@ -250,25 +258,25 @@ metadata:
   uid: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```  
 
-The Kubernetes Fluent Client created a resource when Pepr received the `Watch` event from Kubernetes API Server.
+This confirms the Kubernetes Fluent Client created a resource when Pepr received the `Watch` event from the Kubernetes API Server.
 
-_Sometimes Watch is a better option than Mutate or Validate because it is not affected by [WebHook Timeouts](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy) since it is a call to the Kube-Api Server. However, it does require additional RBAC to Watch resources where as it does not for Admission Phases._
+_Sometimes Watch is a better option than Mutate or Validate because it is not affected by [WebHook Timeouts](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy) because it is a call to the Kube-Api Server and not an Admission Phase. However, it does require additional RBAC to Watch resources. This additional RBAC is not needed when using Mutate or Validate which are Admission Phases._
 
-Before moving on, play with the intellisense. Starting typing 
+Before moving on, play with the IntelliSense. Starting: 
 
 ```ys
 When(a.<notice_intellisense>).<notice_intellisense>.<notice_intellisense>
 ```
 
-Developer experience is a first class citizen in Pepr and it will help you move faster from prototype to MVP.
+Developer experience is a first class citizen in Pepr and it will help you move more quickly from prototype to MVP.
 
-Anytime you make changes or want to format your code use
+Anytime you make changes or want to format your code use:
 
 ```bash
 npx pepr format
 ```
 
-which will tree-shake your code ensuring your module is as small as possible
+This will tree-shake your code, ensuring your module is as small as possible.
 
 ## Phase 2
 
