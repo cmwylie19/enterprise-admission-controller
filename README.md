@@ -280,22 +280,22 @@ This will tree-shake your code, ensuring your module is as small as possible.
 
 ## Phase 2
 
-Big Enterprise Co has been exploited when a hacker reversed shelled out of an over privileged container and sensitive data was stolen from the nodes. Now, they have a zero tolerance policy on privileged containers. 
+Big Enterprise Co was exploited when a hacker reversed shelled out of an over privileged container and sensitive data was stolen from the nodes. In response, the company has created a zero tolerance policy on privileged containers. 
 
 #### Activity 2
 
-Create a new action to enforce the new security standard that containers running as privileged are not allowed to enter the cluster.
+Create an action to enforce the new security standard that containers running as privileged are not allowed to enter the cluster.
 
-Hint:
+Hints:
 1. Copy `capability/hello-pepr.ts` to `capability/admission.ts`
-2. Change the HelloPepr capability to the Admission Capability
-3. Remove the actions and create a new one for When a Pod is created or updated
-4. Set the capability namespaces to `namespaces: []` which means all namespaces so that the policy applies to all namespaces
+2. Rename the HelloPepr Capability to the Admission Capability
+3. Remove the HelloPepr actions and create a new action for When a Pod is created or updated
+4. Set the capability namespaces to `namespaces: []` so that the policy applies to all namespaces
 5. Use the helper function `containers()` from `pepr/sdk` to return all containers on a pod
-6. Update `pepr.ts` to point to admission.ts
-7. Look back in hello-pepr.ts to see how the validates work
+6. Update `pepr.ts` to point to `admission.ts`
+7. Look back in `hello-pepr.ts` to see how the validates work and review the [Validate Docs](https://docs.pepr.dev/main/user-guide/actions/#validate)
 
-[Validate Docs](https://docs.pepr.dev/main/user-guide/actions/#validate)
+You can compare your new Admission Capability to our solution:
 
 ```ts
 import { sdk } from "pepr/sdk"
@@ -317,12 +317,13 @@ When(a.Pod)
 })
 ```
 
-_Check Correctness_
+_Confirm Correctness_
 
-To check if your module correctly rejects privileged pods:
+To condirm your module correctly rejects privileged pods:
 1. Refresh your cluster: `npm run k3d-setup`
-2. Format and run the module `npx pepr format` and then `npx pepr dev --confirm`
-3. Apply test resources below  
+2. Format the module using `npx pepr format` 
+3. Run the module using `npx pepr dev --confirm`
+4. Apply test resources using:  
 
 ```yaml
 kubectl apply -f -<<EOF
@@ -427,18 +428,20 @@ status: {}
 EOF
 ```
 
-4. Check correctness of pods admitted into the cluster:  
+5. Check the correctness of the pods admitted into the cluster:
+    
 ```bash
 kubectl get po -n phase-2 --no-headers -o custom-columns=NAME:.metadata.name
 ```
 
-**expected output**
+The expected output is:
+
 ```plaintext
 unprivileged-po
 root-user-pod
 ```
 
-If you got the expected output, you win! Go to the next. **DO NOT DELETE YOUR CLUSTER**
+If you got the expected output, you win! Go on to Phase 3. **DO NOT DELETE YOUR CLUSTER**
 
 
 ## Phase 3 
