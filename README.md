@@ -40,7 +40,7 @@ Big Enterprise Co maintains strict standards across the board and does not make 
 
 After researching potential Admission Controllers, you decide to use [Pepr](https://github.com/defenseunicorns/pepr) because:
 - It is fully open source
-- It allows the creation of Policy to dictate what can enter a Kubernetes Cluster, similar to Kyverno and OPA Gatekepper
+- It allows the creation of Policy to dictate what can enter a Kubernetes Cluster, similar to Kyverno and OPA Gatekeeper
 - It has a Kubernetes Watch Mechanism, similar to Operator-SDK and Kube-Builder, allowing you to write full Kubernetes native applications to simplify advanced configuration
 - It is lightweight and developer friendly with a simple, easy to use, API and comes with IntelliSense out of the box
 - It comes with an intuitive [Kubernetes Client](https://github.com/defenseunicorns/kubernetes-fluent-client) that uses [Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) as a more efficient means to speak to the Kube-APIServer.
@@ -120,7 +120,7 @@ For example:
 ```plaintext
 When(a.Namespace)
   .IsCreated()
-  .WithAnnotation("DevopsDaysRaleigh 2024")
+  .WithAnnotation("OSSNA 2024")
   .Mutate(ns => ns.RemoveLabel("remove-me"));
 ```
 
