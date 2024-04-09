@@ -132,7 +132,6 @@ Open a `JavaScript Debug Terminal` in VSCode:
 
 ![image](https://github.com/cmwylie19/enterprise-admission-controller/assets/1096507/7d4ffbc6-0e81-4b1d-b06f-53a257b1cae0)
 
-
 Inside of the debug terminal run:
 
 ```bash
@@ -446,25 +445,30 @@ If you got the expected output, you win! Go on to Phase 3. **DO NOT DELETE YOUR 
 
 ## Phase 3 
 
-Big Enterprise Co has started to enhance its security posture, your bosses are pleased, but you can't help noticed the Pod and Container securityContexts are all over the map. Some pods are running as user 0 (which is a problem), some are running as user 655532, and some are running as 1000. Now you need standardization.  
+Big Enterprise Co has started to enhance its security posture. Your bosses are pleased, but you can't help noticing that the Pod and Container securityContexts are all over the map. Some pods are running as user 0 (which is a problem), some are running as user 655532, and some are running as user 1000. There is no standardization.  
 
-Our goal is to standarize the `runAsUser` securityContext for pods and containers. Keep in mind we do NOT want to override existing `runAsUser` securityContext, but to define them should they not be defined. _The only case where we could override a securityContext is if the pod or container was running as user 0._
+Our goal is to standardize the `runAsUser` securityContext for pods and containers. We do NOT want to override any `runAsUser` securityContext that is not running as user 0, but we want to define the securityContext should it not be defined. _The only case where we should override a securityContext is if the pod or container is running as user 0._
 
 #### Activity 3
 
-Create a new action to Mutate pods (and the containers of said pod) to have a default runAsUser value:
+Create a new action to Mutate pods (and the containers of said pods) to have a default runAsUser value:
 - If no runAsUser value exists - assign 655532
-- If a runAsUser exists, only override if value is set to less than 10, in that case override value to 1000
-- If pod has label `ignore-me`, do not override runAsUser even if it is less than 10. **IMPORTANT** When the container user changes, it can lead to problems creating files and mounting volumes which breaks some applications. We need an escape clause. (Hint: you will need this for the operator activity)
+- If a runAsUser value exists:
+    - override the value to set it to 1000 if the runAsUser value is set to a number less than 10
+    - **except** if a pod has the label `ignore-me`, then do not override runAsUser even if it is less than 10.
 
-Hint:
-1. Add a new Mutate action to `capability/admission.ts`
-2. Remember that pods and containers both have securityContext.runAsUser
-3. There are containers, initContainers, and ephemeralContainers
-4. use the containers function to see if you need to update any containers
-5. Create a helper to re-use code `containerHelper`
+**IMPORTANT** When the container user changes, it can lead to problems creating files and mounting volumes which breaks some applications. We need an escape clause. _You will need this for the operator activity that is later in this workshop._
 
-[Mutate Docs](https://docs.pepr.dev/main/user-guide/actions/#mutate) 
+Hints:
+1. Add a new Mutate action to the `capability/admission.ts` you created in Activity 2
+2. Remember that pods and containers both have `securityContext.runAsUser`
+3. You need to consider that there could be containers, initContainers, and ephemeralContainers
+4. Use the containers function from `pepr/sdk` to see if you need to update any containers
+5. Create a `containerHelper` helper to re-use code
+6. You may find it helpful to review the [Mutate Docs](https://docs.pepr.dev/main/user-guide/actions/#mutate)
+
+You can compare your updated Admission Capability to our solution:
+
 ```ts
 import { sdk } from "pepr/sdk"
 // V1Container is the container type for the helper
@@ -491,12 +495,12 @@ When(a.Pod)
 .Mutate(po => {})
 ``` 
 
-
 _Check Correctness_
 
 To check if your module correctly rejects privileged pods:
-1. Format and run the module `npx pepr format` and then `npx pepr dev --confirm`
-2. Apply test resources below. 
+1. Format the module using `npx pepr format` 
+2. Run the module using `npx pepr dev --confirm`
+2. Apply test resources using: 
 
 ```yaml
 kubectl apply -f -<<EOF
@@ -591,9 +595,9 @@ status: {}
 EOF
 ```
 
-3. Check the correctness of the mutated pods:
+4. Check the correctness of the mutated pods:
 
-Ignore-me pod should have not been mutated (has the label), both runAsUser should be 5.  
+- The ignore-me pod should have not been mutated because has the `ignore-me` label). Both runAsUser securityContexts should be 5.  
 
 ```bash
 kubectl get po ignore-me -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
@@ -605,7 +609,7 @@ PodSecurityContext   ContainerSecurityContext
 5                    5
 ```
 
-mutate-pod-leave-container pod should have mutated only the pod and not the container  
+- The mutate-pod-leave-container pod should have mutated only the pod and not the container  
 
 ```bash
 kubectl get po mutate-pod-leave-container -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
@@ -617,7 +621,7 @@ PodSecurityContext   ContainerSecurityContext
 1000                 5555
 ```
 
-mutate-pod-mutate-container pod should have mutated both the pod and the container to 1000 since it was set at 5
+- The mutate-pod-mutate-container pod should have mutated both the pod and the container. The securityContexts should have been mutated to 1000 since they were set at 5.
 
 ```bash
 kubectl get po mutate-pod-mutate-container -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
@@ -629,7 +633,7 @@ PodSecurityContext   ContainerSecurityContext
 1000                 1000
 ```
 
-mutate-to-defaults pod should have mutated both the pod and the container to 1000 since it was set at 5
+- The mutate-to-defaults pod should have mutated both the pod and the container to 1000 since no securityContexts were set.
 
 ```bash
 kubectl get po mutate-to-defaults -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
@@ -641,31 +645,27 @@ PodSecurityContext   ContainerSecurityContext
 655532               655532
 ```
 
-If you got the expected output, you win! Go to the next. **DO NOT DELETE YOUR CLUSTER**
+If you got the expected output, you win! Go on to Phase 4. **DO NOT DELETE YOUR CLUSTER**
 
 
 ## Phase 4
 
-Pepr features a full featured Store and Schedule. Back in [Phase 3](#phase-3) we were applying default runAsUser securityContexts but we ignored pods with label `ignore-me`. Big Enterprise Co wants to run a job that reports the last app that uses the ignore label every 10 seconds. You were thinking about using a Kubernetes native CronJob, but you realize with Pepr's Store and Schedule you can do this all in one place.
+Pepr features a full featured Store and Schedule. Back in [Phase 3](#phase-3) we were applying default runAsUser securityContexts but we ignored pods with label `ignore-me`. Big Enterprise Co wants to run a job that reports every 10 seconds the last app that uses the ignore label. You were thinking about using a Kubernetes native CronJob, but you realize with Pepr's Store and Schedule you can do this all in one place.
 
 #### Activity 4
 
-_The idea of this activity is to learn to use the Store and Schedule._
+_This activity focuses on learning to use Pepr's Store and Schedule._
 
-We need to update the `capability/admission.ts` to store the last pod that has the label `ignore-me` and then create a schedule that runs every 10 seconds to check the store for the last pod that has the label `ignore-me`.
+We need to update `capability/admission.ts` to store the last pod that has the label `ignore-me` and then create a schedule that runs every 10 seconds to check the store for the last pod that has the label `ignore-me`.
 
-Todo:
+Hints:
 - Update the Mutate action that is looking for pods that were CreatedOrUpdated, if the pod has label "ignore-me", set the pod in the store with `Store.setItem("last-ignore-me", po.Raw.metadata.name);`
 - Create an OnSchedule that gets the item from the store "last-ignore-me" and does a Log.info("Last ignored pod was xxx") and then sets another item in the store "pass" to "{name-of-pod}".
+- You may find it helpful to review the [OnSchedule Docs](https://docs.pepr.dev/main/user-guide/onschedule/)
+- You may find it helpful to review the [Store Docs](https://docs.pepr.dev/main/user-guide/store/)
+- Make sure you run Pepr with PEPR_WATCH_MODE=true in order to use the schedule `PEPR_WATCH_MODE="true"  npx pepr dev --confirm`  
 
-
-Hint:
-- [OnSchedule](https://docs.pepr.dev/main/user-guide/onschedule/) Docs
-- [Store](https://docs.pepr.dev/main/user-guide/store/) Docs
-1. Make sure you run Pepr with PEPR_WATCH_MODE=true in order to use the schedule`PEPR_WATCH_MODE="true"  npx pepr dev --confirm`  
-
-[Store Docs](https://docs.pepr.dev/main/user-guide/store/)  
-[Schedule Docs](https://docs.pepr.dev/main/user-guide/onschedule/)  
+You can compare your updated `capability/admission.ts` to our solution:
 
 ```ts
 const { When, Store, OnSchedule } = Admission;
@@ -731,19 +731,18 @@ kubectl get peprstore -n pepr-system -oyaml | grep pass
 
 ## Phase 5
 
-Congrats! So far 199/200 apps are onboarded. Unfortunately, the last app team has no Kubernetes experience and are having a difficult time having repeatable deployments and "heroics" are involved every time they need to do a release. After seeing the team pull all-nighters, you decide to build an operator to help deploy the app. Since Pepr natively speaks to the Kubernetes Watch API and has a reconcile callback that processes events in a Queue guaranteeing ordered and synchronous processing of events, even when the system may be under heavy load.
+Congrats! So far 199/200 apps are onboarded. Unfortunately, the last app team has no Kubernetes experience and the team members are having a difficult time creating repeatable deployments. "Heroics" are involved every time they need to do a release. After seeing the team pull all-nighters, you decide to build an operator to help deploy the app. Because Pepr natively speaks to the Kubernetes Watch API and has a reconcile callback that processes events in a Queue guaranteeing ordered and synchronous processing of events, an operator will allow for consistent, repeatable deployments even when the system may be under heavy load.
 
-The App has 3 major configuration options:
+The App that you'll be creating a controller for is a webapp that has 3 major configuration options:
 1. Language - English, Spanish
 2. Theme - Dark, Light
 3. Replicas - 1-7
-
 
 Your job is to consolidate this down to one resource so that the team can focus more on building the app and less on the deployment specifics.
 
 #### Activity 5
 
-Create an Operator in Pepr that Reconciles on a WebApp resource. 
+Create an Operator in Pepr that reconciles on a WebApp resource. 
 
 When the Operator is deployed:
 - The WebApp CRD Should be Created
@@ -751,29 +750,26 @@ When the Operator is deployed:
 - If a resource needed by the WebApp is deleted, it should be auto created (Deployment, Service, ConfigMap)
 - If the WebApp instance is deleted, then the owned resources should also be deleted
 
-
-Hint:
-1. [Operator Tutorial](https://docs.pepr.dev/main/pepr-tutorials/create-pepr-operator/)
-2. [Excellent Example Operator](https://github.com/defenseunicorns/pepr-excellent-examples/tree/main/pepr-operator)
-
-
-Run your pepr module with `npx pepr dev --confirm` in one terminal.
+Hints:
+1. You may find it helpful to review the [Operator Tutorial](https://docs.pepr.dev/main/pepr-tutorials/create-pepr-operator/)
+2. You may find it helpful to review the [Excellent Example Operator](https://github.com/defenseunicorns/pepr-excellent-examples/tree/main/pepr-operator)
+3. Run your pepr module with `npx pepr dev --confirm` in one terminal.
 
 _Check Correctness_
 
-1. Make sure WebApp CRD was deployed by Controller
+1. Make sure the WebApp CRD was deployed by the Controller
 
 ```bash
 kubectl get crd webapps.pepr.io --no-headers
 ```
 
-expected output
+**expected output**
 
 ```bash
 webapps.pepr.io   2024-04-08T16:29:29Z
 ```
 
-2. Deploy a webapp instance, check to see if a `ConfigMap` with Spanish, a `Service`, and a `Deployment` are created
+2. Deploy a webapp instance and check to see if a `ConfigMap` with Spanish, a `Service`, and a `Deployment` are created
 
 ```yaml
 kubectl create ns webapps;
@@ -790,13 +786,13 @@ spec:
 EOF
 ```
 
-Should have a `ConfigMap`, `Service`, and `Deployment` called webapp-light-en:
+The webapp instance should have a `ConfigMap`, `Service`, and `Deployment` called webapp-light-en:
 
 ```bash
 kubectl get svc,deploy,cm -n webapps --no-headers
 ```
 
-expected output
+**expected output**
 
 ```bash
 service/webapp-light-en   ClusterIP   10.43.173.219   <none>   80/TCP   16s
@@ -806,25 +802,25 @@ configmap/web-content-webapp-light-en   1     16s
 ┌─[cmwylie19@Cases-MacBook-Pro] - [~/enterprise-adm
 ```
 
-Expect all replicas to be available
+3. Expect all replicas to be available:
 
 ```bash
 kubectl get deploy -n webapps webapp-light-en --template="{{.status.availableReplicas}}"
 ```
 
-expected output
+**expected output**
 ```bash
 1
 ```
 
-If you delete a WebApp owned resource, it is auto created
+4. If you delete a WebApp owned resource, it is auto created:
 
 ```bash
 kubectl delete cm --all -n webapps
 kubectl get cm -n webapps
 ```
 
-expected output
+**expected output**
 
 ```bash
 NAME                          DATA   AGE
@@ -832,7 +828,7 @@ kube-root-ca.crt              1      0s
 web-content-webapp-light-en   1      0s
 ```
 
-Expect that if you delete the WebApp Resource, the owned resources will have a cascading deletion
+5. Expect that if you delete the WebApp Resource, the owned resources will have a cascading deletion:
 
 ```bash
 kubectl delete webapps -n webapps --all
@@ -842,7 +838,7 @@ sleep 10
 kubectl get cm,deploy,svc -n webapps
 ```
 
-expected output
+**expected output**
 
 ```bash
 NAME                         DATA   AGE
@@ -857,9 +853,13 @@ Big Enterprise Co has a GitOps workflow. You need to generate the Kubernetes man
 
 In our case, we need to extend the WebHook timeout because our Operator needs to be deleted from the Store BEFORE it is deleted from the Kubernetes cluster. Sometimes it can take several seconds for something to be deleted from the store so it is safer to extend the timeout.
 
+To build your code and extend the timeout:
+
 ```bash
 npx pepr build --timeout=25
 ```
+
+To make sure that the Operator is deleted from the Store before it is deleted from the Kubernetes cluster, you can update your code to include:
 
 ```ts
 When(WebApp)
@@ -879,19 +879,23 @@ When(a.ConfigMap)
   });
 ```
 
-Another alternative we have is to deploy our Controller with rbac-mode scoped down to least privileged. Remember, Mutating and Validating require zero permissins, but Watch and Reconcile does. Running the build in with `rbac-mode=scoped` will generate enough RBAC for you to watch the resources but if you are CREATING, READING, UPDATING, DELETING resources yourself in terms of calls to the Kube-APIServer you will need add that to the cluster role. By default, the service account will have cluster admin and will be able to do ANY API CALL! For prod, it is recommended to scope it down to the least privilege possible.  
+Another alternative we have is to deploy our Controller with rbac-mode scoped down to least privileged:
 
 ```bash
 npx pepr build --rbac-mode=scoped
 ```
 
+Remember, Mutating and Validating require zero permissions, but Watch and Reconcile do. Running the build with `rbac-mode=scoped` will generate enough RBAC for you to watch the resources but if you are CREATING, READING, UPDATING, DELETING resources yourself, in terms of calls to the Kube-APIServer, you will need add that to the cluster role. By default, the service account will have cluster admin and will be able to do ANY API CALL! For prod, it is recommended to scope it down to the least privilege possible.  
+
 #### Activity 6
 
 Recreate the cluster and deploy with rbac mode scoped and the webhook timeout set to 25 seconds
 
-Hint:
-- [RBAC Docs](https://docs.pepr.dev/main/user-guide/rbac/)
-- [Build Docs](https://docs.pepr.dev/main/user-guide/pepr-cli/#npx-pepr-build)
+Hints:
+- You may find it helpful to review the [RBAC Docs](https://docs.pepr.dev/main/user-guide/rbac/)
+- You may find it helpful to review the [Build Docs](https://docs.pepr.dev/main/user-guide/pepr-cli/#npx-pepr-build)
+
+You can deploy with rbac mode scoped and the webhoot timeout set to 25 seconds using:
 
 ```bash
 npx pepr build --rbac-mode=scoped --timeout=25
@@ -899,13 +903,15 @@ npx pepr build --rbac-mode=scoped --timeout=25
 
 _Check Correctness_
 
+First, get your module up and running:
+
 ```bash
 kubectl apply -f dist/pepr-module*.yaml
 kubectl wait --for=condition=ready pod -l app -n 
 pepr-system
 ```
 
-Expected outputs:
+**Expected outputs:**
 
 Admission Controller Pods Ready
 
@@ -924,6 +930,6 @@ pepr-c8219d66-6901-5ef5-bcd5-6bb66f6afbb7-watcher   1/1     1            1      
 
 ## Phase 7 
 
-Think of a security posture that you want to enforce at your company and complete it adding more mutations and validations to your webhooks.
+Think of a security posture that you want to enforce at your company and create it by adding more mutations and validations to your webhooks.
 
 #### [TOP](#optimizing-kubernetes-operators-and-admission-control-with-pepr)
