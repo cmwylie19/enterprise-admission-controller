@@ -264,7 +264,7 @@ _Sometimes Watch is a better option than Mutate or Validate because it is not af
 
 Before moving on, play with the IntelliSense. Starting: 
 
-```ys
+```plaintext
 When(a.<notice_intellisense>).<notice_intellisense>.<notice_intellisense>
 ```
 
