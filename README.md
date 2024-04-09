@@ -34,7 +34,6 @@ You are the Chief Architect at Big Enterprise Co which maintains over 200 produc
 It is your job to ensure: 
 - All 200 Apps are migrated
 - Apps meets security requirements
-- Apps meet resource requirements 
 - The teams are able to quickly release patches and updates
 
 Big Enterprise Co maintains strict standards across the board and does not make exceptions for any team. The teams have different levels of experience in Kubernetes. In order to enforce standarization, you decide to create an Admission Controller so that all resources entering the cluster are validated and mutated to meet the standards.
