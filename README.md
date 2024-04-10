@@ -332,8 +332,6 @@ kind: Namespace
 metadata:
   creationTimestamp: null
   name: phase-2
-spec: {}
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -346,13 +344,9 @@ spec:
   containers:
   - image: nginx
     name: double-privileged-po
-    resources: {}
     securityContext:
       privileged: true
       allowPrivilegeEscalation: true
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -365,12 +359,8 @@ spec:
   containers:
   - image: nginx
     name: privileged-po
-    resources: {}
     securityContext:
       privileged: true
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -383,12 +373,8 @@ spec:
   containers:
   - image: nginx
     name: escalated-privileged-po
-    resources: {}
     securityContext:
       allowPrivilegeEscalation: true
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -401,11 +387,7 @@ spec:
   containers:
   - image: nginx
     name: unprivileged-po
-    resources: {}
     securityContext: {}
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -418,12 +400,8 @@ spec:
   containers:
   - image: nginx
     name: root-user-pod
-    resources: {}
     securityContext:
       runAsUser: 0
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 EOF
 ```
 
@@ -456,8 +434,8 @@ Our goal is to standardize the `runAsUser` securityContext for pods and containe
 Create a new action to Mutate pods (and the containers of said pods) to have a default runAsUser value:
 - If no runAsUser value exists - assign 655532
 - If a runAsUser value exists:
-    - If set 0 - 10, then override the value to set it to 1000
-    - If a pod has the label `ignore-me`, then **DO NOT MUTATE**!
+  - If set 0 - 10, then override the value to set it to 1000
+- If a pod has the label `ignore-me`, then **DO NOT MUTATE**!
 
 **IMPORTANT** When the container user changes, it can lead to problems creating files and mounting volumes which breaks some applications. We need an escape clause. _You will need this for the operator activity that is later in this workshop._
 
@@ -512,8 +490,6 @@ kind: Namespace
 metadata:
   creationTimestamp: null
   name: phase-3
-spec: {}
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -532,15 +508,10 @@ spec:
     name: po
     securityContext:
       runAsUser: 5
-    resources: {}
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  creationTimestamp: null
   labels:
     run: mutate-pod
   name: mutate-pod-leave-container
@@ -554,15 +525,10 @@ spec:
     name: mutate-pod
     securityContext:
       runAsUser: 5555
-    resources: {}
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  creationTimestamp: null
   labels:
     run: mutate-pod
   name: mutate-pod-mutate-container
@@ -576,15 +542,10 @@ spec:
     command: ["sh", "-c", "sleep 3600"]
     securityContext:
       runAsUser: 5
-    resources: {}
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  creationTimestamp: null
   labels:
     run: mutate-to-default
   name: mutate-to-default
@@ -595,9 +556,6 @@ spec:
     name: mutate-to-default
     command: ["sh", "-c", "sleep 3600"]
     resources: {}
-  dnsPolicy: ClusterFirst
-  restartPolicy: Always
-status: {}
 EOF
 ```
 
@@ -704,7 +662,6 @@ metadata:
   creationTimestamp: null
   name: phase-4
 spec: {}
-status: {}
 ---
 apiVersion: v1
 kind: Pod
@@ -723,7 +680,6 @@ spec:
     resources: {}
   dnsPolicy: ClusterFirst
   restartPolicy: Always
-status: {}
 EOF
 sleep 20
 kubectl get peprstore -n pepr-system -oyaml | grep pass
