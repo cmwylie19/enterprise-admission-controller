@@ -290,14 +290,14 @@ Hints:
 2. Rename the HelloPepr Capability to the Admission Capability
 3. Remove the HelloPepr actions and create a new action for When a Pod is created or updated
 4. Set the capability namespaces to `namespaces: []` so that the policy applies to all namespaces
-5. Use the helper function `containers()` from `pepr/sdk` to return all containers on a pod
+5. Use the helper function `containers` from `pepr`. It is in an sdk object. to return all containers on a pod
 6. Update `pepr.ts` to point to `admission.ts`
 7. Look back in `hello-pepr.ts` to see how the validates work and review the [Validate Docs](https://docs.pepr.dev/main/user-guide/actions/#validate)
 
 You can compare your new Admission Capability to our solution:
 
 ```ts
-import { sdk } from "pepr/sdk"
+import { sdk } from "pepr"
 
 export const Admission = new Capability({
   name: "Admission",
@@ -463,14 +463,14 @@ Hints:
 1. Add a new Mutate action to the `capability/admission.ts` you created in Activity 2
 2. Remember that pods and containers both have `securityContext.runAsUser`
 3. You need to consider that there could be containers, initContainers, and ephemeralContainers
-4. Use the containers function from `pepr/sdk` to see if you need to update any containers
+4. Use the containers function from `pepr` to see if you need to update any containers
 5. Create a `containerHelper` helper to re-use code
 6. You may find it helpful to review the [Mutate Docs](https://docs.pepr.dev/main/user-guide/actions/#mutate)
 
 You can compare your updated Admission Capability to our solution:
 
 ```ts
-import { sdk } from "pepr/sdk"
+import { sdk } from "pepr"
 // V1Container is the container type for the helper
 import { V1Container } from "@kubernetes/client-node";
 
