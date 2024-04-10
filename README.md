@@ -525,7 +525,8 @@ spec:
   securityContext:
     runAsUser: 5
   containers:
-  - image: nginx
+  - image: ubuntu
+    command: ["sh", "-c", "sleep 3600"]
     name: po
     securityContext:
       runAsUser: 5
@@ -546,7 +547,8 @@ spec:
   securityContext:
     runAsUser: 5
   containers:
-  - image: nginx
+  - image: ubuntu
+    command: ["sh", "-c", "sleep 3600"]
     name: mutate-pod
     securityContext:
       runAsUser: 5555
@@ -567,8 +569,9 @@ spec:
   securityContext:
     runAsUser: 5
   containers:
-  - image: nginx
+  - image: ubuntu
     name: mutate-pod
+    command: ["sh", "-c", "sleep 3600"]
     securityContext:
       runAsUser: 5
     resources: {}
@@ -586,8 +589,9 @@ metadata:
   namespace: phase-3
 spec:
   containers:
-  - image: nginx
+  - image: ubuntu
     name: mutate-to-default
+    command: ["sh", "-c", "sleep 3600"]
     resources: {}
   dnsPolicy: ClusterFirst
   restartPolicy: Always
@@ -636,7 +640,7 @@ PodSecurityContext   ContainerSecurityContext
 - The mutate-to-defaults pod should have mutated both the pod and the container to 1000 since no securityContexts were set.
 
 ```bash
-kubectl get po mutate-to-defaults -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
+kubectl get po mutate-to-default -o custom-columns='PodSecurityContext:.spec.securityContext.runAsUser,ContainerSecurityContext:.spec.containers[*].securityContext.runAsUser' -n phase-3
 ```
 
 **expected output**
