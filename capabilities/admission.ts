@@ -1,6 +1,7 @@
-import { Capability, PeprMutateRequest, PeprValidateRequest, a } from "pepr";
+import { Capability, PeprMutateRequest, PeprValidateRequest, a, sdk } from "pepr";
 import { V1Container } from "@kubernetes/client-node";
-// import { containers } from "pepr/sdk"
+
+const { containers } = sdk;
 
 export const Admission = new Capability({
   name: "Admission",
@@ -65,22 +66,3 @@ When(a.Pod)
       }
     }
   });
-export function containers(
-  request: PeprValidateRequest<a.Pod> | PeprMutateRequest<a.Pod>,
-  containerType?: "containers" | "initContainers" | "ephemeralContainers",
-) {
-  const containers = request.Raw.spec?.containers || [];
-  const initContainers = request.Raw.spec?.initContainers || [];
-  const ephemeralContainers = request.Raw.spec?.ephemeralContainers || [];
-
-  if (containerType === "containers") {
-    return containers;
-  }
-  if (containerType === "initContainers") {
-    return initContainers;
-  }
-  if (containerType === "ephemeralContainers") {
-    return ephemeralContainers;
-  }
-  return [...containers, ...initContainers, ...ephemeralContainers];
-}
