@@ -447,15 +447,17 @@ If you got the expected output, you win! Go on to Phase 3. **DO NOT DELETE YOUR 
 
 Big Enterprise Co has started to enhance its security posture. Your bosses are pleased, but you can't help noticing that the Pod and Container securityContexts are all over the map. Some pods are running as user 0 (which is a problem), some are running as user 655532, and some are running as user 1000. There is no standardization.  
 
-Our goal is to standardize the `runAsUser` securityContext for pods and containers. We do NOT want to override any `runAsUser` securityContext that is not running as user 0, but we want to define the securityContext should it not be defined. _The only case where we should override a securityContext is if the pod or container is running as user 0._
+Our goal is to standardize the `runAsUser` securityContext for pods and containers.
+- If the pod/container do not have a securityContext `runAsUser`, create one
+- If the pod/container has a securityContext `runAsUser` set to 0, override it
 
 #### Activity 3
 
 Create a new action to Mutate pods (and the containers of said pods) to have a default runAsUser value:
 - If no runAsUser value exists - assign 655532
 - If a runAsUser value exists:
-    - override the value to set it to 1000 if the runAsUser value is set to a number less than 10
-    - **except** if a pod has the label `ignore-me`, then do not override runAsUser even if it is less than 10.
+    - If set 0 - 10, then override the value to set it to 1000
+    - If a pod has the label `ignore-me`, then **DO NOT MUTATE**!
 
 **IMPORTANT** When the container user changes, it can lead to problems creating files and mounting volumes which breaks some applications. We need an escape clause. _You will need this for the operator activity that is later in this workshop._
 
