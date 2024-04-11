@@ -1,6 +1,6 @@
 # Optimizing Kubernetes Operators and Admission Control with Pepr
 
-The format to run this workshop is phase by phase, moving on after each activity is complete. The markdown has a [corresponding repo](https://github.com/cmwylie19/enterprise-admission-controller.git) where each phase has a corresponding branch. If you ever get stuck you can peek at the repo.  
+The format to run this workshop is phase by phase, moving on after each activity is complete. The markdown has a [corresponding repo](https://github.com/cmwylie19/enterprise-admission-controller.git) where each phase has a corresponding branch. If you ever get stuck you can peek at the repo at the corresponding branch.  
 
 ### TOC
 - [Background](#background)
